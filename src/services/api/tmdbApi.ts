@@ -1,5 +1,6 @@
 // src/services/api/tmdbApi.ts
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL, API_KEY, IMAGE_BASE_URL, IMAGE_SIZES, ENDPOINTS, REQUEST_TIMEOUT } from './config';
 
 // Setup axios instance with default config
@@ -10,6 +11,40 @@ const apiClient = axios.create({
     api_key: API_KEY,
   },
 });
+
+// Storage keys for API cache
+const API_CACHE_KEYS = {
+  SEARCH_MOVIES: '@MovieTracker:api:searchMovies:',
+  MOVIE_DETAILS: '@MovieTracker:api:movieDetails:',
+  MOVIE_CREDITS: '@MovieTracker:api:movieCredits:',
+  POPULAR_MOVIES: '@MovieTracker:api:popularMovies:',
+  TRENDING_MOVIES: '@MovieTracker:api:trendingMovies:',
+};
+
+// Helper to get/set cache with TTL (default: 1 day)
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 1 day in ms
+
+async function getCachedOrFetch<T>(
+  key: string,
+  fetchFn: () => Promise<T>,
+  ttl: number = CACHE_TTL
+): Promise<T> {
+  try {
+    const cached = await AsyncStorage.getItem(key);
+    if (cached) {
+      const { value, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < ttl) {
+        return value;
+      }
+    }
+    const value = await fetchFn();
+    await AsyncStorage.setItem(key, JSON.stringify({ value, timestamp: Date.now() }));
+    return value;
+  } catch (e) {
+    // On error, fallback to fetch
+    return fetchFn();
+  }
+}
 
 // Interfaces for API responses
 export interface Movie {
@@ -64,71 +99,55 @@ export const getImageUrl = (
 export const movieApi = {
   // Search for movies
   searchMovies: async (query: string, page = 1): Promise<MovieSearchResponse> => {
-    try {
+    const cacheKey = `${API_CACHE_KEYS.SEARCH_MOVIES}${query.toLowerCase()}_${page}`;
+    return getCachedOrFetch(cacheKey, async () => {
       const response = await apiClient.get(ENDPOINTS.SEARCH_MOVIE, {
-        params: {
-          query,
-          page,
-          include_adult: false,
-        },
+        params: { query, page, include_adult: false },
       });
       return response.data;
-    } catch (error) {
-      console.error('Error searching movies:', error);
-      throw error;
-    }
+    });
   },
 
   // Get movie details
   getMovieDetails: async (movieId: number): Promise<Movie> => {
-    try {
+    const cacheKey = `${API_CACHE_KEYS.MOVIE_DETAILS}${movieId}`;
+    return getCachedOrFetch(cacheKey, async () => {
       const response = await apiClient.get(`${ENDPOINTS.MOVIE_DETAILS}/${movieId}`, {
-        params: {
-          append_to_response: 'videos,images',
-        },
+        params: { append_to_response: 'videos,images' },
       });
       return response.data;
-    } catch (error) {
-      console.error(`Error fetching movie details for ID ${movieId}:`, error);
-      throw error;
-    }
+    });
   },
 
   // Get movie credits (cast & crew)
   getMovieCredits: async (movieId: number): Promise<MovieCredits> => {
-    try {
+    const cacheKey = `${API_CACHE_KEYS.MOVIE_CREDITS}${movieId}`;
+    return getCachedOrFetch(cacheKey, async () => {
       const response = await apiClient.get(`${ENDPOINTS.MOVIE_DETAILS}/${movieId}/credits`);
       return response.data;
-    } catch (error) {
-      console.error(`Error fetching movie credits for ID ${movieId}:`, error);
-      throw error;
-    }
+    });
   },
 
   // Get popular movies
   getPopularMovies: async (page = 1): Promise<MovieSearchResponse> => {
-    try {
+    const cacheKey = `${API_CACHE_KEYS.POPULAR_MOVIES}${page}`;
+    return getCachedOrFetch(cacheKey, async () => {
       const response = await apiClient.get(ENDPOINTS.POPULAR_MOVIES, {
         params: { page },
       });
       return response.data;
-    } catch (error) {
-      console.error('Error fetching popular movies:', error);
-      throw error;
-    }
+    });
   },
 
   // Get trending movies
   getTrendingMovies: async (page = 1): Promise<MovieSearchResponse> => {
-    try {
+    const cacheKey = `${API_CACHE_KEYS.TRENDING_MOVIES}${page}`;
+    return getCachedOrFetch(cacheKey, async () => {
       const response = await apiClient.get(ENDPOINTS.TRENDING_MOVIES, {
         params: { page },
       });
       return response.data;
-    } catch (error) {
-      console.error('Error fetching trending movies:', error);
-      throw error;
-    }
+    });
   },
 };
 

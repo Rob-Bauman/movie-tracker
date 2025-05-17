@@ -1,31 +1,88 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography } from '../theme/theme';
+import MovieList from '../components/movie/MovieList';
+import { useMovieContext } from '../context/MovieContext'; // Use context instead of movieStorage
+import { UserMovie } from '../services/storage/movieStorage';
 
 const HomeScreen = () => {
+  const { movies, isLoading, refreshData } = useMovieContext(); // Use context
+  const [recentMovies, setRecentMovies] = useState<UserMovie[]>([]);
+  const [stats, setStats] = useState({
+    count: 0,
+    totalHours: '0',
+    avgRating: 0,
+  });
+
+  // Calculate stats and recent movies from context movies
+  const fetchMoviesAndStats = () => {
+    // Recently added (top 5)
+    const sorted = movies
+      .slice()
+      .sort((a, b) => b.addedDate.localeCompare(a.addedDate))
+      .slice(0, 5);
+    setRecentMovies(sorted);
+
+    // Stats based on all movies
+    const count = movies.length;
+    const totalMinutes = movies.reduce((sum, m) => sum + (m.runtime || 0), 0);
+    const totalHours = count > 0 ? (totalMinutes / 60).toFixed(1) : '0.0';
+    const avgRating =
+      count > 0
+        ? Math.round(
+            (movies.reduce((sum, m) => sum + (m.rating || 0), 0) / count) * 10
+          ) / 10
+        : 0;
+    setStats({
+      count,
+      totalHours,
+      avgRating,
+    });
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshData();
+    }, [refreshData])
+  );
+
+  // Update stats and recentMovies when movies change
+  React.useEffect(() => {
+    fetchMoviesAndStats();
+  }, [movies]);
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.welcomeText}>Welcome to MovieTracker</Text>
+
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recently Added</Text>
-        <View style={styles.placeholderList}>
-          <Text style={styles.placeholderText}>Your recently added movies will appear here</Text>
-        </View>
+        <MovieList
+          movies={recentMovies}
+          title="Recently Added"
+          emptyText="No recently added movies"
+          loading={isLoading}
+          horizontal
+          showYear
+          showRating
+        />
       </View>
       
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Stats</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{stats.count}</Text>
             <Text style={styles.statLabel}>Movies Watched</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{stats.totalHours}</Text>
             <Text style={styles.statLabel}>Total Hours</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>-</Text>
+            <Text style={styles.statValue}>
+              {stats.count > 0 ? stats.avgRating : '-'}
+            </Text>
             <Text style={styles.statLabel}>Avg Rating</Text>
           </View>
         </View>
@@ -79,6 +136,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   statItem: {
     backgroundColor: colors.card.background,
@@ -86,7 +144,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
     flex: 1,
-    marginHorizontal: spacing.xs,
     borderWidth: 1,
     borderColor: colors.card.border,
   },

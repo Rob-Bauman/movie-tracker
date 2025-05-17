@@ -1,50 +1,75 @@
 // src/screens/SearchScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { colors, spacing, typography, borderRadius } from '../theme/theme';
 import Icon from 'react-native-vector-icons/Ionicons';
+import useSearch from '../hooks/useSearch';
+import { getReleaseYear } from '../utils/dateUtils';
+import MovieList from '../components/movie/MovieList';
+import { useMovieContext } from '../context/MovieContext'; // <-- Import context
 
-// Placeholder movie data for UI demonstration
-const placeholderMovies = [
-  { id: 1, title: 'Sample Movie 1', year: 2023 },
-  { id: 2, title: 'Sample Movie 2', year: 2022 },
-  { id: 3, title: 'Sample Movie 3', year: 2021 },
-];
 
 const SearchScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
 
+  const {
+    searchResults,
+    isLoading,
+    error,
+    searchMovies,
+    totalResults,
+    loadMoreResults,
+    currentQuery,
+  } = useSearch();
+
+  const { movies: userMovies } = useMovieContext(); // <-- Get user's collection
+
   const handleSearch = () => {
-    // This will be replaced with actual API call
-    setHasSearched(true);
+    if (searchQuery.trim() !== '') {
+      searchMovies(searchQuery);
+      setHasSearched(true);
+    } else {
+      setHasSearched(true);
+    }
   };
 
-  const renderMovieItem = ({ item }: { item: { id: number; title: string; year: number } }) => (
-    <TouchableOpacity style={styles.movieItem}>
-      <View style={styles.posterPlaceholder}>
-        <Icon name="film-outline" size={24} color={colors.text.secondary} />
-      </View>
-      <View style={styles.movieInfo}>
-        <Text style={styles.movieTitle}>{item.title}</Text>
-        <Text style={styles.movieYear}>{item.year}</Text>
-      </View>
-      <Icon name="chevron-forward" size={20} color={colors.text.secondary} />
-    </TouchableOpacity>
-  );
+  // Transform TMDB Movie to MovieListItem for MovieList
+  const movieListItems = searchResults.map((item) => {
+    const userMovie = userMovies.find((m) => m.id === item.id);
+    return {
+      id: item.id,
+      title: item.title,
+      year: getReleaseYear(item.release_date),
+      posterPath: item.poster_path,
+      watchDate: userMovie?.watchDate, // <-- Add watchDate if in collection
+      // Add more fields if needed
+    };
+  });
 
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search movies..."
-          placeholderTextColor={colors.text.secondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-          onSubmitEditing={handleSearch}
-        />
+        <View style={{ flex: 1, position: 'relative' }}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search movies..."
+            placeholderTextColor={colors.text.secondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            onSubmitEditing={handleSearch}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Icon name="close-circle" size={20} color={colors.text.secondary} />
+            </TouchableOpacity>
+          )}
+        </View>
         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
           <Icon name="search" size={20} color={colors.text.primary} />
         </TouchableOpacity>
@@ -60,17 +85,36 @@ const SearchScreen = () => {
           <Icon name="alert-circle-outline" size={48} color={colors.text.secondary} />
           <Text style={styles.emptyStateText}>Please enter a search term</Text>
         </View>
+      ) : isLoading ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.emptyStateText}>Searching...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.emptyState}>
+          <Icon name="alert-circle-outline" size={48} color={colors.text.secondary} />
+          <Text style={styles.emptyStateText}>{error}</Text>
+        </View>
+      ) : searchResults.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Icon name="sad-outline" size={48} color={colors.text.secondary} />
+          <Text style={styles.emptyStateText}>No results found</Text>
+        </View>
       ) : (
-        <FlatList
-          data={placeholderMovies}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderMovieItem}
-          contentContainerStyle={styles.listContainer}
-          ListHeaderComponent={
+        <MovieList
+          movies={movieListItems}
+          emptyText="No results found"
+          listHeaderComponent={
             <Text style={styles.resultsText}>
-              Results for "{searchQuery}"
+              Results for "{currentQuery}" ({totalResults})
             </Text>
           }
+          loading={isLoading}
+          onEndReached={loadMoreResults}
+          onEndReachedThreshold={0.5}
+          showYear
+          showRating={false}
+          compact
         />
       )}
     </View>
@@ -103,6 +147,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginLeft: spacing.sm,
     borderRadius: borderRadius.md,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: spacing.sm,
+    top: '50%',
+    transform: [{ translateY: -10 }],
+    zIndex: 1,
   },
   emptyState: {
     flex: 1,
@@ -140,6 +191,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: borderRadius.sm,
+    overflow: 'hidden',
+  },
+  posterImage: {
+    width: 40,
+    height: 60,
     borderRadius: borderRadius.sm,
   },
   movieInfo: {

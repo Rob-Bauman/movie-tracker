@@ -1,19 +1,34 @@
 // src/screens/AddMovieScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Switch, Image } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, typography, borderRadius } from '../theme/theme';
+import { UserMovie } from '../services/storage/movieStorage';
+import { RootStackParamList } from '../../App';
+import { useMovieContext } from '../context/MovieContext'; // <-- Import context
+
+type AddMovieRouteProp = RouteProp<RootStackParamList, 'AddMovie'>;
 
 const AddMovieScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<AddMovieRouteProp>();
+  const { movie, credits } = route.params;
+
+  const { addMovie } = useMovieContext(); // <-- Use context function
+
+  // Pre-fill fields from movie details
   const [movieData, setMovieData] = useState({
-    title: '',
-    year: '',
+    title: movie.title || '',
+    year: movie.release_date ? movie.release_date.slice(0, 4) : '',
     watchDate: '',
     rating: 0,
     notes: '',
   });
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [sawInTheaters, setSawInTheaters] = useState(false);
 
   // Update form data
   const handleChange = (field: string, value: string | number) => {
@@ -28,47 +43,69 @@ const AddMovieScreen = () => {
     handleChange('rating', rating);
   };
 
-  // Save movie to collection (will connect to AsyncStorage/SQLite)
-  const handleSave = () => {
-    console.log('Saving movie:', movieData);
-    // In real implementation: save to AsyncStorage or SQLite
+  // Save movie to collection using MovieContext
+  const handleSave = async () => {
+    const userMovie: UserMovie = {
+      id: movie.id,
+      tmdbId: movie.id,
+      title: movieData.title,
+      year: movieData.year,
+      posterPath: movie.poster_path,
+      watchDate: movieData.watchDate,
+      rating: movieData.rating,
+      notes: movieData.notes,
+      genres: movie.genres ? movie.genres.map((g) => g.name) : [],
+      director: credits?.crew.find((c) => c.job === 'Director')?.name || '',
+      runtime: movie.runtime ?? 0,
+      addedDate: new Date().toISOString().split('T')[0],
+      sawInTheaters,
+    };
+    await addMovie(userMovie); // <-- Use context function
     navigation.goBack();
   };
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Movie Title *</Text>
-        <TextInput
-          style={styles.input}
-          value={movieData.title}
-          onChangeText={(text) => handleChange('title', text)}
-          placeholder="Enter movie title"
-          placeholderTextColor={colors.text.secondary}
-        />
-      </View>
-
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Release Year</Text>
-        <TextInput
-          style={styles.input}
-          value={movieData.year}
-          onChangeText={(text) => handleChange('year', text)}
-          placeholder="Enter release year"
-          placeholderTextColor={colors.text.secondary}
-          keyboardType="numeric"
-        />
+      <View style={styles.prominentInfoGroup}>
+        {movie.poster_path ? (
+          <Image
+            source={{ uri: `https://image.tmdb.org/t/p/w342${movie.poster_path}` }}
+            style={styles.posterImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.noPoster}>
+            <Icon name="film-outline" size={64} color={colors.text.secondary} />
+          </View>
+        )}
+        <Text style={styles.prominentTitle}>{movieData.title}</Text>
+        <Text style={styles.prominentYear}>{movieData.year}</Text>
       </View>
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>Watch Date</Text>
-        <TextInput
+        <TouchableOpacity
           style={styles.input}
-          value={movieData.watchDate}
-          onChangeText={(text) => handleChange('watchDate', text)}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.text.secondary}
-        />
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={{ color: movieData.watchDate ? colors.text.primary : colors.text.secondary }}>
+            {movieData.watchDate || 'Select date'}
+          </Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={movieData.watchDate ? new Date(movieData.watchDate) : new Date()}
+            mode="date"
+            display="default"
+            onChange={(_, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                const iso = selectedDate.toISOString().split('T')[0];
+                handleChange('watchDate', iso);
+              }
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.formGroup}>
@@ -104,6 +141,18 @@ const AddMovieScreen = () => {
         />
       </View>
 
+      <View style={styles.formGroup}>
+        <View style={styles.switchRowContainer}>
+          <Text style={styles.label}>Saw in Theaters</Text>
+          <Switch
+            value={sawInTheaters}
+            onValueChange={setSawInTheaters}
+            thumbColor={sawInTheaters ? colors.primary : colors.card.border}
+            trackColor={{ false: colors.card.border, true: colors.primary }}
+          />
+        </View>
+      </View>
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.cancelButton}
@@ -133,6 +182,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: spacing.md,
   },
+  prominentInfoGroup: {
+    marginBottom: spacing.lg,
+    alignItems: 'center',
+  },
+  prominentTitle: {
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  prominentYear: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.medium,
+    color: colors.text.secondary,
+  },
   formGroup: {
     marginBottom: spacing.lg,
   },
@@ -160,6 +224,11 @@ const styles = StyleSheet.create({
   },
   starButton: {
     marginRight: spacing.sm,
+  },
+  switchRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -197,6 +266,21 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.medium,
+  },
+  posterImage: {
+    width: 120,
+    height: 180,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+  },
+  noPoster: {
+    width: 120,
+    height: 180,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.card.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
 });
 

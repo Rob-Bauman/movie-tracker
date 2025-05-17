@@ -4,7 +4,7 @@
 // This would typically be in an .env file
 // For demonstration purposes, we'll define it here
 // In a real app, use react-native-dotenv to load from .env
-export const API_KEY = 'YOUR_TMDB_API_KEY'; // Replace with actual API key when implementing
+export const API_KEY = 'YOUR_TMDB_API_KEY'; // Replace with your TMDB API key
 
 // API Base URLs
 export const API_BASE_URL = 'https://api.themoviedb.org/3';
