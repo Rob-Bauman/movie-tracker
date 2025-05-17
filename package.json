@@ -17,8 +17,10 @@
     "axios": "^1.9.0",
     "expo": "~53.0.9",
     "expo-status-bar": "~2.2.3",
+    "papaparse": "^5.5.2",
     "react": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-document-picker": "^9.3.1",
     "react-native-dotenv": "^3.4.11",
     "react-native-gesture-handler": "^2.25.0",
     "react-native-reanimated": "^3.17.5",
@@ -28,7 +30,9 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@types/papaparse": "^5.3.16",
     "@types/react": "~19.0.10",
+    "metro-react-native-babel-preset": "^0.77.0",
     "typescript": "~5.8.3"
   },
   "private": true

@@ -16,6 +16,7 @@ export interface UserMovie {
   runtime: number;        // Runtime in minutes
   addedDate: string;      // When the movie was added to collection
   sawInTheaters?: boolean; // Whether the movie was seen in theaters
+  recommendedBy?: string; // Name of the person who recommended the movie
 }
 
 // Renamed from MovieCollection to MovieList
