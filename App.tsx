@@ -16,11 +16,15 @@ import SettingsScreen from './src/screens/SettingsScreen';
 // Import theme
 import { colors } from './src/theme/theme';
 
+// Import types
+import { Movie, MovieCredits } from './src/services/api/tmdbApi';
+import { MovieProvider } from './src/context/MovieContext';
+
 // Define navigation types
 export type RootStackParamList = {
   MainTabs: undefined;
   MovieDetails: { movieId: number };
-  AddMovie: undefined;
+  AddMovie: { movie: Movie; credits: MovieCredits };
 };
 
 export type MainTabParamList = {
@@ -76,36 +80,38 @@ const MainTabNavigator = () => {
 // Root navigation
 const App = () => {
   return (
-    <NavigationContainer>
-      <StatusBar barStyle="light-content" backgroundColor={colors.secondary} />
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <Stack.Navigator
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: colors.secondary,
-            },
-            headerTintColor: colors.text.primary,
-            cardStyle: { backgroundColor: colors.background },
-          }}
-        >
-          <Stack.Screen
-            name="MainTabs"
-            component={MainTabNavigator}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="MovieDetails"
-            component={MovieDetailsScreen}
-            options={{ title: 'Movie Details' }}
-          />
-          <Stack.Screen
-            name="AddMovie"
-            component={AddMovieScreen}
-            options={{ title: 'Add Movie' }}
-          />
-        </Stack.Navigator>
-      </SafeAreaView>
-    </NavigationContainer>
+    <MovieProvider>
+      <NavigationContainer>
+        <StatusBar barStyle="light-content" backgroundColor={colors.secondary} />
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <Stack.Navigator
+            screenOptions={{
+              headerStyle: {
+                backgroundColor: colors.secondary,
+              },
+              headerTintColor: colors.text.primary,
+              cardStyle: { backgroundColor: colors.background },
+            }}
+          >
+            <Stack.Screen
+              name="MainTabs"
+              component={MainTabNavigator}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="MovieDetails"
+              component={MovieDetailsScreen}
+              options={{ title: 'Movie Details' }}
+            />
+            <Stack.Screen
+              name="AddMovie"
+              component={AddMovieScreen}
+              options={{ title: 'Add Movie' }}
+            />
+          </Stack.Navigator>
+        </SafeAreaView>
+      </NavigationContainer>
+    </MovieProvider>
   );
 };
 
