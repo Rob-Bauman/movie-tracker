@@ -1,7 +1,8 @@
 // src/services/api/tmdbApi.ts
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL, API_KEY, IMAGE_BASE_URL, IMAGE_SIZES, ENDPOINTS, REQUEST_TIMEOUT } from './config';
+import { API_KEY } from '@env'; // Ensure you have your API key in .env file
+import { API_BASE_URL, IMAGE_BASE_URL, IMAGE_SIZES, ENDPOINTS, REQUEST_TIMEOUT } from './config';
 
 // Setup axios instance with default config
 const apiClient = axios.create({
