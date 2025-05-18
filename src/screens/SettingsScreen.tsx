@@ -2,7 +2,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { colors, spacing, typography, borderRadius } from '../theme/theme';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import { colors, spacing, typography } from '../theme/theme';
+import { importMoviesFromCSV } from '../services/import/csvImportService';
+import { useMovieContext } from '../context/MovieContext';
 
 const SettingsScreen = () => {
   const [settings, setSettings] = useState({
@@ -11,6 +15,8 @@ const SettingsScreen = () => {
     dataSync: false,
     biometricAuth: false,
   });
+
+  const { addMovie } = useMovieContext();
 
   // Toggle setting value
   const toggleSetting = (key: keyof typeof settings) => {
@@ -37,6 +43,32 @@ const SettingsScreen = () => {
         },
       ]
     );
+  };
+
+  // CSV Import Handler
+  const handleImportCSV = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'text/csv',
+        copyToCacheDirectory: true,
+      });
+      if (result && result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        const csvString = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+        const { imported, errors } = await importMoviesFromCSV(csvString);
+
+        // Add imported movies to collection
+        for (const movie of imported) {
+          await addMovie(movie);
+        }
+
+        Alert.alert(
+          'Import Complete',
+          `Imported: ${imported.length} movies\n${errors.length ? 'Errors:\n' + errors.join('\n') : ''}`
+        );
+      }
+    } catch (err) {
+      Alert.alert('Import Failed', err instanceof Error ? err.message : String(err));
+    }
   };
 
   return (
@@ -114,6 +146,11 @@ const SettingsScreen = () => {
         <TouchableOpacity style={styles.dataButton}>
           <Icon name="document-text-outline" size={24} color={colors.text.primary} style={styles.settingIcon} />
           <Text style={styles.dataButtonText}>Privacy Policy</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.dataButton} onPress={handleImportCSV}>
+          <Icon name="cloud-upload-outline" size={24} color={colors.text.primary} style={styles.settingIcon} />
+          <Text style={styles.dataButtonText}>Import from CSV</Text>
         </TouchableOpacity>
       </View>
 
