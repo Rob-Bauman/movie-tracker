@@ -25,6 +25,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "737f2f03-0c3a-434f-82d2-ba54623d9fdc"
+      }
+    },
+    "owner": "firebertny"
   }
 }
