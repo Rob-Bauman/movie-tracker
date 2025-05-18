@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import * as DocumentPicker from 'react-native-document-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { colors, spacing, typography } from '../theme/theme';
 import { importMoviesFromCSV } from '../services/import/csvImportService';
@@ -48,12 +48,12 @@ const SettingsScreen = () => {
   // CSV Import Handler
   const handleImportCSV = async () => {
     try {
-      const result = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.csv || 'text/csv'],
-        copyTo: 'cachesDirectory',
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'text/csv',
+        copyToCacheDirectory: true,
       });
-      if (result && result.uri) {
-        const csvString = await FileSystem.readAsStringAsync(result.uri, { encoding: FileSystem.EncodingType.UTF8 });
+      if (result && result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        const csvString = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
         const { imported, errors } = await importMoviesFromCSV(csvString);
 
         // Add imported movies to collection
