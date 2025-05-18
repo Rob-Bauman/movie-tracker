@@ -1,7 +1,16 @@
 // src/services/api/tmdbApi.ts
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_KEY } from '@env'; // Ensure you have your API key in .env file
+// Try to get API_KEY from Expo env, fallback to @env import for local dev
+let API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY;
+if (!API_KEY) {
+  try {
+    // @ts-ignore
+    API_KEY = require('@env').API_KEY;
+  } catch {
+    API_KEY = undefined;
+  }
+}
 import { API_BASE_URL, IMAGE_BASE_URL, IMAGE_SIZES, ENDPOINTS, REQUEST_TIMEOUT } from './config';
 
 // Setup axios instance with default config
